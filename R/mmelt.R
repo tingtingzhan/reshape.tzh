@@ -44,7 +44,7 @@ mmelt <- function(data, id.vars, measure_rx, variable.name = 'variable') {
   val_nm <- names(measure_rx)
   if (!length(val_nm) || anyNA(val_nm) || !all(nzchar(val_nm))) stop('`measure_rx` must be named')
   
-  m_vars_ <- lapply(measure_rx, FUN = grep, x = nm, value = TRUE)
+  m_vars_ <- lapply(measure_rx, FUN = grepv, x = nm)
   # stopifnot(is.list(m_vars_))
   tmp_ <- mapply(FUN = gsub, pattern = measure_rx, x = m_vars_, MoreArgs = list(replacement = ''), SIMPLIFY = FALSE)
   o <- lapply(tmp_, FUN = order)
