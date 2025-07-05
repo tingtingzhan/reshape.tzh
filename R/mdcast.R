@@ -4,15 +4,15 @@
 cast <- reshape2:::cast
 
 
-#' @title Cast a Molten \link[base]{data.frame} with Multiple `value.var`
+#' @title Cast a Molten \link[base]{data.frame} with *Multiple* `value.var`
 #' 
 #' @description 
-#' Cast a molten \link[base]{data.frame} with multiple `value.var`.
+#' Cast a molten \link[base]{data.frame} with *multiple* `value.var`.
 #' 
 #' @param data a molten \link[base]{data.frame}, 
 #' returned object of \link[reshape2]{melt.data.frame}
 #' 
-#' @param formula casting \link[stats]{formula}, see \link[reshape2]{dcast}
+#' @param formula casting \link[stats]{formula}, see function \link[reshape2]{dcast}
 #' 
 #' @param value.var \link[base]{character} \link[base]{vector}, 
 #' names of columns which store the values 
@@ -59,13 +59,15 @@ cast <- reshape2:::cast
 #' 
 #' @examples 
 #' library(reshape2)
-#' head(aqm <- melt(airquality, id = c('Month', 'Day'), na.rm = TRUE, 
-#'   value.name = 'v1', variable.name = 'variable'))
+#' head(aqm <- melt(airquality, id = c('Month', 'Day'), na.rm = TRUE, value.name = 'v1'))
 #' aqm$v2 = rnorm(dim(aqm)[1L])
 #' head(aqm)
-#' head(dcast(aqm, Month + Day ~ variable, value.var = 'v1'))
-#' head(aqm_d <- mdcast(aqm, Month + Day ~ variable, value.var = c('v1', 'v2')))
-#' sapply(aqm_d, FUN = class)
+#' aqm |> 
+#'  dcast(formula = Month + Day ~ variable, value.var = 'v1') |> 
+#'  head()
+#' aqm |> 
+#'  mdcast(formula = Month + Day ~ variable, value.var = c('v1', 'v2')) |>
+#'  head()
 #' 
 #' (x <- data.frame(
 #'   subj = rep(1:2, each = 3),
@@ -73,8 +75,10 @@ cast <- reshape2:::cast
 #'   date = as.Date(c(14001:14003, 18001:18003)),
 #'   y1 = rnorm(6), 
 #'   y2 = c(rnorm(1), NA, NA, rnorm(1), NA, NA)))
-#' mdcast(x, subj ~ event, value.var = c('y1', 'y2')) # very useful !!!
-#' mdcast(x, subj ~ event) # very useful !!!
+#' x |> 
+#'  mdcast(formula = subj ~ event, value.var = c('y1', 'y2')) # very useful !!!
+#' x |> 
+#'  mdcast(formula = subj ~ event) # very useful !!!
 #' 
 #' @keywords internal
 #' @importFrom reshape2 acast
@@ -85,6 +89,7 @@ mdcast <- function(
     ..., 
     value.var = setdiff(names(data), y = all.vars(formula))
 ) {
+  
   if (!(nv <- length(value.var))) stop('value.var degenerate?')
   if (!is.character(value.var) || anyNA(value.var) || !all(nzchar(value.var))) stop('`value.var` must be character')
   if (nv == 1L) .Defunct(msg = 'use reshape2::dcast directly')
@@ -93,57 +98,51 @@ mdcast <- function(
   labels <- cast(data = data, formula = formula, value.var = value.var[1L], ...)$labels[[1L]] # see ?reshape2::dcast
   
   names(value.var) <- value.var
-  ret_acast <- lapply(value.var, FUN = \(iv) { # (iv = 'date')
-    tmp0 <- acast(data = data, formula = formula, value.var = iv, ...)
-    tmp <- tmp0[, colSums(!is.na(tmp0)) > 0, drop = FALSE] # remove all-NA columns
-    # cannot use `drop = TRUE` here!  If `tmp0` is 'factor' 'matrix', `drop = TRUE` will remove attr(,'dim') 
-    
-    if (dim(tmp)[2L] == 1L) return(c(tmp))
-    # passing ncol-1 'matrix' to \link[base]{data.frame}, will cause error in returned column names!
-    
-    if (is.matrix(tmp)) {
-      if (is.factor(tmp)) {
-        # ?base::data.frame does not handle 'factor' 'matrix' well
-        tmp1 <- as.data.frame.matrix(tmp) # all columns 'character'
-        tmp1[] <- lapply(tmp1, FUN = factor, levels = levels(tmp))
-        return(tmp1)
-      } else if (inherits(tmp, what = 'Date')) {
-        # ?base::data.frame does not handle 'Date' 'matrix' well
-        tmp1 <- as.data.frame.matrix(tmp) # all columns 'numeric'
-        tmp1[] <- lapply(tmp1, FUN = .Date)
-        return(tmp1)
-      }
-    }
-
-    return(tmp)
+  
+  ret_acast <- lapply(value.var, FUN = \(v) {
+    acast(data = data, formula = formula, value.var = v, ...) |> 
+      cleanup_acast()
   })
   
-  if (FALSE) {
-    class(labels) # 'data.frame'
-    dim(labels)
-    sapply(ret_acast, FUN = class)
-    lapply(ret_acast[1:8], head)
-    sapply(ret_acast, FUN = \(x) {
-      if (is.matrix(x)) nrow(x) else length(x)
-    })
-  }
-  
-  ret <- data.frame(
+  data.frame(
     labels, 
     ret_acast,  # 'matrix' will be turned into 'data.frame'
     check.names = FALSE
   )
   
-  
-  return(data.frame(
-    labels, 
-    ret_acast,  # 'matrix' will be turned into 'data.frame'
-    check.names = FALSE
-  )) 
-  
 }
 
 
 
+
+
+
+cleanup_acast <- function(x) {
+  
+  # `x` is returned object from reshape2::acast
+  
+  z <- x[, colSums(!is.na(x)) > 0, drop = FALSE] # remove all-NA columns
+  # cannot use `drop = TRUE` here!  If `x` is 'factor' 'matrix', `drop = TRUE` will remove attr(,'dim') 
+  
+  if (ncol(z) == 1L) return(c(z))
+  # passing ncol-1 'matrix' to \link[base]{data.frame}, has undesired result in returned column names!
+  
+  if (!is.matrix(z)) stop('should not happen') # was: return(z)
+  
+  z1 <- as.data.frame.matrix(z)
+  
+  if (is.factor(z)) {
+    # ?base::data.frame does not handle 'factor' 'matrix' well
+    z1[] <- lapply(z1, FUN = factor, levels = levels(z))
+  } 
+  
+  if (inherits(z, what = 'Date')) {
+    # ?base::data.frame does not handle 'Date' 'matrix' well
+    z1[] <- lapply(z1, FUN = .Date)
+  }
+  
+  return(z1)
+  
+}
 
 

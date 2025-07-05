@@ -2,7 +2,7 @@
 % Please edit documentation in R/mdcast.R
 \name{mdcast}
 \alias{mdcast}
-\title{Cast a Molten \link[base]{data.frame} with Multiple \code{value.var}}
+\title{Cast a Molten \link[base]{data.frame} with \emph{Multiple} \code{value.var}}
 \usage{
 mdcast(
   data,
@@ -15,7 +15,7 @@ mdcast(
 \item{data}{a molten \link[base]{data.frame},
 returned object of \link[reshape2]{melt.data.frame}}
 
-\item{formula}{casting \link[stats]{formula}, see \link[reshape2]{dcast}}
+\item{formula}{casting \link[stats]{formula}, see function \link[reshape2]{dcast}}
 
 \item{...}{additional parameters of functions \link[reshape2]{acast} and \link[reshape2]{dcast},
 which eventually get passed into function \code{reshape2:::cast}.}
@@ -27,7 +27,7 @@ names of columns which store the values}
 Function \code{\link[=mdcast]{mdcast()}} returns a \link[base]{data.frame}.
 }
 \description{
-Cast a molten \link[base]{data.frame} with multiple \code{value.var}.
+Cast a molten \link[base]{data.frame} with \emph{multiple} \code{value.var}.
 }
 \details{
 Function \code{\link[=mdcast]{mdcast()}} is an extension of \link[reshape2]{dcast} in the following aspects,
@@ -65,13 +65,15 @@ I have asked Hadley, but he has no plan to export \code{reshape2:::cast}.
 }
 \examples{
 library(reshape2)
-head(aqm <- melt(airquality, id = c('Month', 'Day'), na.rm = TRUE, 
-  value.name = 'v1', variable.name = 'variable'))
+head(aqm <- melt(airquality, id = c('Month', 'Day'), na.rm = TRUE, value.name = 'v1'))
 aqm$v2 = rnorm(dim(aqm)[1L])
 head(aqm)
-head(dcast(aqm, Month + Day ~ variable, value.var = 'v1'))
-head(aqm_d <- mdcast(aqm, Month + Day ~ variable, value.var = c('v1', 'v2')))
-sapply(aqm_d, FUN = class)
+aqm |> 
+ dcast(formula = Month + Day ~ variable, value.var = 'v1') |> 
+ head()
+aqm |> 
+ mdcast(formula = Month + Day ~ variable, value.var = c('v1', 'v2')) |>
+ head()
 
 (x <- data.frame(
   subj = rep(1:2, each = 3),
@@ -79,8 +81,10 @@ sapply(aqm_d, FUN = class)
   date = as.Date(c(14001:14003, 18001:18003)),
   y1 = rnorm(6), 
   y2 = c(rnorm(1), NA, NA, rnorm(1), NA, NA)))
-mdcast(x, subj ~ event, value.var = c('y1', 'y2')) # very useful !!!
-mdcast(x, subj ~ event) # very useful !!!
+x |> 
+ mdcast(formula = subj ~ event, value.var = c('y1', 'y2')) # very useful !!!
+x |> 
+ mdcast(formula = subj ~ event) # very useful !!!
 
 }
 \keyword{internal}
