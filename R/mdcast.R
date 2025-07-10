@@ -74,7 +74,8 @@ cast <- reshape2:::cast
 #'   event = rep(paste0('evt', 1:3), times = 2), 
 #'   date = as.Date(c(14001:14003, 18001:18003)),
 #'   y1 = rnorm(6), 
-#'   y2 = c(rnorm(1), NA, NA, rnorm(1), NA, NA)))
+#'   y2 = c(rnorm(1), NA, NA, rnorm(1), NA, NA),
+#'   y3 = c(rnorm(2), NA, rnorm(2), NA)))
 #' x |> 
 #'  mdcast(formula = subj ~ event, value.var = c('y1', 'y2')) # very useful !!!
 #' x |> 
