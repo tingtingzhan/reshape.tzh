@@ -11,6 +11,6 @@ Authors@R: c(person(given = "Tingting", family =
       '0000-0001-9971-4844')))
 Language: en-US
 Roxygen: list(markdown = TRUE)
-Depends: R (>= 4.5.0)
-Imports: cli, reshape2 (== 1.4.4)
+Depends: R (>= 4.5.0), reshape2 (== 1.4.4)
+Imports: cli
 RoxygenNote: 7.3.2
