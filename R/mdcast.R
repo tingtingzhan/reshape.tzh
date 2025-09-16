@@ -83,6 +83,7 @@ cast <- reshape2:::cast
 #' 
 #' @keywords internal
 #' @importFrom reshape2 acast
+#' @importFrom stats setNames
 #' @export
 mdcast <- function(
     data, 
@@ -98,12 +99,12 @@ mdcast <- function(
   # using ?reshape2:::cast illegally
   labels <- cast(data = data, formula = formula, value.var = value.var[1L], ...)$labels[[1L]] # see ?reshape2::dcast
   
-  names(value.var) <- value.var
-  
-  ret_acast <- lapply(value.var, FUN = \(v) {
-    acast(data = data, formula = formula, value.var = v, ...) |> 
-      cleanup_acast()
-  })
+  ret_acast <- value.var |>
+    setNames(nm = _) |>
+    lapply(FUN = \(v) {
+      acast(data = data, formula = formula, value.var = v, ...) |> 
+        cleanup_acast()
+    })
   
   data.frame(
     labels, 
@@ -117,7 +118,7 @@ mdcast <- function(
 
 
 
-
+#' @importFrom stats na.omit
 cleanup_acast <- function(x) {
   
   # `x` is returned object from reshape2::acast
@@ -129,6 +130,30 @@ cleanup_acast <- function(x) {
   # passing ncol-1 'matrix' to \link[base]{data.frame}, has undesired result in returned column names!
   
   if (!is.matrix(z)) stop('should not happen') # was: return(z)
+  
+  # if all-equal-but-NA, return single-column
+  seq_r <- z |>
+    nrow() |>
+    seq_len()
+  nz <- seq_r |>
+    vapply(FUN = \(i) {
+      z[i, ] |>
+        unique() |>
+        na.omit() |>
+        length()
+    }, FUN.VALUE = NA_integer_)
+  if (all(nz %in% c(0, 1))) {
+    ret <- seq_r |>
+      lapply(FUN = \(i) {
+        tmp <- z[i, ] |>
+          unique() |>
+          na.omit()
+        if (!length(tmp)) return(NA)
+        return(tmp)
+      }) |>
+      unlist()
+    return(ret)
+  }
   
   z1 <- as.data.frame.matrix(z)
   
