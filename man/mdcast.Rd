@@ -8,7 +8,9 @@ mdcast(
   data,
   formula,
   ...,
-  value.var = setdiff(names(data), y = all.vars(formula))
+  value.var = setdiff(names(data), y = all.vars(formula)),
+  na_col_rm = TRUE,
+  equal_col_rm = TRUE
 )
 }
 \arguments{
@@ -22,6 +24,10 @@ which eventually get passed into function \code{reshape2:::cast}.}
 
 \item{value.var}{\link[base]{character} \link[base]{vector},
 names of columns which store the values}
+
+\item{na_col_rm}{\link[base]{logical} scalar}
+
+\item{equal_col_rm}{\link[base]{logical} scalar}
 }
 \value{
 Function \code{\link[=mdcast]{mdcast()}} returns a \link[base]{data.frame}.
@@ -34,7 +40,7 @@ Function \code{\link[=mdcast]{mdcast()}} is an extension of \link[reshape2]{dcas
 
 \itemize{
 
-\item {\link{mdcast} handles \strong{m}ultiple \code{value.var}.
+\item {\code{\link[=mdcast]{mdcast()}} handles \strong{m}ultiple \code{value.var}.
 For the \eqn{i}-th value variable in \code{value.var},
 the \link[reshape2]{acast} columns are named in the fashion of
 \verb{value[i].variable[j]}, \eqn{j=1,\cdots,J}.
@@ -75,7 +81,7 @@ aqm |>
  mdcast(formula = Month + Day ~ variable, value.var = c('v1', 'v2')) |>
  head()
 
-(x <- data.frame(
+set.seed(12); (x <- data.frame(
   subj = rep(1:2, each = 3),
   event = rep(paste0('evt', 1:3), times = 2), 
   date = as.Date(c(14001:14003, 18001:18003)),
@@ -83,9 +89,13 @@ aqm |>
   y2 = c(rnorm(1), NA, NA, rnorm(1), NA, NA),
   y3 = c(rnorm(2), NA, rnorm(2), NA)))
 x |> 
- mdcast(formula = subj ~ event, value.var = c('y1', 'y2')) # very useful !!!
+ mdcast(formula = subj ~ event, value.var = c('y1', 'y2'))
 x |> 
- mdcast(formula = subj ~ event) # very useful !!!
+ mdcast(formula = subj ~ event, value.var = c('y1', 'y2'), na_col_rm = FALSE, equal_col_rm = FALSE)
+x |> 
+ mdcast(formula = subj ~ event)
+x |> 
+ mdcast(formula = subj ~ event, na_col_rm = FALSE, equal_col_rm = FALSE)
 
 }
 \keyword{internal}

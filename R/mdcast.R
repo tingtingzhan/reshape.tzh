@@ -17,6 +17,10 @@ cast <- reshape2:::cast
 #' @param value.var \link[base]{character} \link[base]{vector}, 
 #' names of columns which store the values 
 #' 
+#' @param na_col_rm \link[base]{logical} scalar
+#' 
+#' @param equal_col_rm \link[base]{logical} scalar
+#' 
 #' @param ... additional parameters of functions \link[reshape2]{acast} and \link[reshape2]{dcast},
 #' which eventually get passed into function `reshape2:::cast`.
 #' 
@@ -25,7 +29,7 @@ cast <- reshape2:::cast
 #' 
 #' \itemize{
 #' 
-#' \item {[mdcast] handles **m**ultiple `value.var`.
+#' \item {[mdcast()] handles **m**ultiple `value.var`.
 #' For the \eqn{i}-th value variable in `value.var`,
 #' the \link[reshape2]{acast} columns are named in the fashion of 
 #' `value[i].variable[j]`, \eqn{j=1,\cdots,J}.
@@ -69,7 +73,7 @@ cast <- reshape2:::cast
 #'  mdcast(formula = Month + Day ~ variable, value.var = c('v1', 'v2')) |>
 #'  head()
 #' 
-#' (x <- data.frame(
+#' set.seed(12); (x <- data.frame(
 #'   subj = rep(1:2, each = 3),
 #'   event = rep(paste0('evt', 1:3), times = 2), 
 #'   date = as.Date(c(14001:14003, 18001:18003)),
@@ -77,9 +81,13 @@ cast <- reshape2:::cast
 #'   y2 = c(rnorm(1), NA, NA, rnorm(1), NA, NA),
 #'   y3 = c(rnorm(2), NA, rnorm(2), NA)))
 #' x |> 
-#'  mdcast(formula = subj ~ event, value.var = c('y1', 'y2')) # very useful !!!
+#'  mdcast(formula = subj ~ event, value.var = c('y1', 'y2'))
 #' x |> 
-#'  mdcast(formula = subj ~ event) # very useful !!!
+#'  mdcast(formula = subj ~ event, value.var = c('y1', 'y2'), na_col_rm = FALSE, equal_col_rm = FALSE)
+#' x |> 
+#'  mdcast(formula = subj ~ event)
+#' x |> 
+#'  mdcast(formula = subj ~ event, na_col_rm = FALSE, equal_col_rm = FALSE)
 #' 
 #' @keywords internal
 #' @importFrom reshape2 acast
@@ -89,7 +97,9 @@ mdcast <- function(
     data, 
     formula, 
     ..., 
-    value.var = setdiff(names(data), y = all.vars(formula))
+    value.var = setdiff(names(data), y = all.vars(formula)),
+    na_col_rm = TRUE,
+    equal_col_rm = TRUE
 ) {
   
   if (!(nv <- length(value.var))) stop('value.var degenerate?')
@@ -103,7 +113,7 @@ mdcast <- function(
     setNames(nm = _) |>
     lapply(FUN = \(v) {
       acast(data = data, formula = formula, value.var = v, ...) |> 
-        cleanup_acast()
+        cleanup_acast(na_col_rm = na_col_rm, equal_col_rm = equal_col_rm)
     })
   
   data.frame(
@@ -119,55 +129,59 @@ mdcast <- function(
 
 
 #' @importFrom stats na.omit
-cleanup_acast <- function(x) {
+cleanup_acast <- function(x, na_col_rm = TRUE, equal_col_rm = TRUE, ...) {
   
   # `x` is returned object from reshape2::acast
   
-  z <- x[, colSums(!is.na(x)) > 0, drop = FALSE] # remove all-NA columns
-  # cannot use `drop = TRUE` here!  If `x` is 'factor' 'matrix', `drop = TRUE` will remove attr(,'dim') 
+  if (na_col_rm) {
+    x <- x[, colSums(!is.na(x)) > 0, drop = FALSE] 
+    # remove all-NA columns
+    # cannot use `drop = TRUE` here!  If `x` is 'factor' 'matrix', `drop = TRUE` will remove attr(,'dim')
+  }
   
-  if (ncol(z) == 1L) return(c(z))
+  if (ncol(x) == 1L) return(c(x))
   # passing ncol-1 'matrix' to \link[base]{data.frame}, has undesired result in returned column names!
   
-  if (!is.matrix(z)) stop('should not happen') # was: return(z)
+  if (!is.matrix(x)) stop('should not happen') # was: return(x)
   
-  # if all-equal-but-NA, return single-column
-  seq_r <- z |>
-    nrow() |>
-    seq_len()
-  nz <- seq_r |>
-    vapply(FUN = \(i) {
-      z[i, ] |>
-        unique() |>
-        na.omit() |>
-        length()
-    }, FUN.VALUE = NA_integer_)
-  if (all(nz %in% c(0, 1))) {
-    ret <- seq_r |>
-      lapply(FUN = \(i) {
-        tmp <- z[i, ] |>
+  if (equal_col_rm) {
+    seq_r <- x |>
+      nrow() |>
+      seq_len()
+    nx <- seq_r |>
+      vapply(FUN = \(i) {
+        x[i, ] |>
           unique() |>
-          na.omit()
-        if (!length(tmp)) return(NA)
-        return(tmp)
-      }) |>
-      unlist()
-    return(ret)
-  }
+          na.omit() |>
+          length()
+      }, FUN.VALUE = NA_integer_)
+    if (all(nx %in% c(0, 1))) {
+      ret <- seq_r |>
+        lapply(FUN = \(i) {
+          tmp <- x[i, ] |>
+            unique() |>
+            na.omit()
+          if (!length(tmp)) return(NA)
+          return(tmp)
+        }) |>
+        unlist()
+      return(ret)
+    }
+  } # if all-equal-but-NA, return single-column
   
-  z1 <- as.data.frame.matrix(z)
+  x1 <- as.data.frame.matrix(x)
   
-  if (is.factor(z)) {
+  if (is.factor(x)) {
     # ?base::data.frame does not handle 'factor' 'matrix' well
-    z1[] <- lapply(z1, FUN = factor, levels = levels(z))
+    x1[] <- lapply(x1, FUN = factor, levels = levels(x))
   } 
   
-  if (inherits(z, what = 'Date')) {
+  if (inherits(x, what = 'Date')) {
     # ?base::data.frame does not handle 'Date' 'matrix' well
-    z1[] <- lapply(z1, FUN = .Date)
+    x1[] <- lapply(x1, FUN = .Date)
   }
   
-  return(z1)
+  return(x1)
   
 }
 
