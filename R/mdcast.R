@@ -161,8 +161,13 @@ cleanup_acast <- function(x, na_col_rm = TRUE, equal_col_rm = TRUE, ...) {
           tmp <- x[i, ] |>
             unique() |>
             na.omit()
-          if (!length(tmp)) return(NA)
-          return(tmp)
+          attr(tmp, which = 'na.action') <- NULL
+          if (length(tmp)) return(tmp)
+          z <- NA # 'logical'
+          storage.mode(z) <- typeof(tmp)
+          # tmp[] <- z # does not work..
+          attributes(z) <- attributes(tmp) # 'factor'
+          return(z)
         }) |>
         unlist()
       return(ret)
