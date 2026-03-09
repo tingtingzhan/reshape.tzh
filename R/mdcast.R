@@ -169,7 +169,8 @@ cleanup_acast <- function(x, na_col_rm = TRUE, equal_col_rm = TRUE, ...) {
           attributes(z) <- attributes(tmp) # 'factor'
           return(z)
         }) |>
-        unlist()
+        # unlist() # destroys 'Date'!!
+        do.call(what = c, args = _) # great!
       return(ret)
     }
   } # if all-equal-but-NA, return single-column
